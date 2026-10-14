@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#0369a1" />
+      <stop offset="100%" stop-color="#075985" />
+    </linearGradient>
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67e8f9" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0.2" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle with safe margin for PWA maskable -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  
+  <!-- Subtle circular aura -->
+  <circle cx="256" cy="256" r="180" fill="url(#glowGrad)" opacity="0.25" />
+
+  <!-- 20-Litre Water Can Silhouette -->
+  <g filter="url(#shadow)">
+    <!-- Can Neck / Cap -->
+    <rect x="220" y="96" width="72" height="28" rx="8" fill="#e0f2fe" />
+    <rect x="232" y="80" width="48" height="20" rx="4" fill="#0284c7" stroke="#e0f2fe" stroke-width="4" />
+
+    <!-- Can Top Shoulder -->
+    <path d="M192 144 L320 144 L340 184 L172 184 Z" fill="#bae6fd" />
+    <path d="M220 124 L292 124 L320 144 L192 144 Z" fill="#e0f2fe" />
+
+    <!-- Can Body (Classic ribbed 20L bottle) -->
+    <rect x="160" y="184" width="192" height="208" rx="28" fill="#0284c7" stroke="#e0f2fe" stroke-width="6" />
+
+    <!-- Water Level Fill -->
+    <rect x="166" y="240" width="180" height="146" rx="22" fill="url(#waterGrad)" />
+
+    <!-- Ridges on the water can -->
+    <line x1="172" y1="230" x2="340" y2="230" stroke="#7dd3fc" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+    <line x1="172" y1="285" x2="340" y2="285" stroke="#38bdf8" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+    <line x1="172" y1="340" x2="340" y2="340" stroke="#0284c7" stroke-width="6" stroke-linecap="round" opacity="0.9"/>
+
+    <!-- Shiny gloss highlight -->
+    <path d="M184 204 L184 364" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.4" />
+    
+    <!-- Water Drop Emblem / Fairness Scales Accent in Center -->
+    <path d="M256 260 C240 286 230 300 230 316 C230 330 241 342 256 342 C271 342 282 330 282 316 C282 300 272 286 256 260 Z" fill="#ffffff" opacity="0.9" />
+  </g>
+
+  <!-- Fairness Ring Indicator -->
+  <circle cx="256" cy="256" r="216" stroke="#38bdf8" stroke-width="6" stroke-dasharray="16 12" opacity="0.4" />
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "PaniPari",
+  "description": "Fair turn-and-cost tracker for shared household essentials like water cans, cylinders, and groceries in shared flats and hostels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
