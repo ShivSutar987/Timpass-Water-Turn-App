@@ -11,6 +11,7 @@ import {
   IndianRupee,
   History,
   Settings,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -25,6 +26,7 @@ export const BottomNav: React.FC = () => {
     { id: 'members' as const, label: 'Members', icon: Users, badge: null },
     { id: 'balance' as const, label: 'Balance', icon: BarChart3, badge: null },
     { id: 'costs' as const, label: 'Costs', icon: IndianRupee, badge: null },
+    { id: 'ai' as const, label: 'AI Help', icon: Sparkles, badge: null },
     { id: 'history' as const, label: 'History', icon: History, badge: null },
     { id: 'settings' as const, label: 'Settings', icon: Settings, badge: null },
   ];

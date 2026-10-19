@@ -32,6 +32,7 @@ fun AppBottomNav(
             Triple(AppTab.MEMBERS, Icons.Default.Group, Icons.Outlined.Group),
             Triple(AppTab.BALANCE, Icons.Default.BarChart, Icons.Outlined.BarChart),
             Triple(AppTab.COSTS, Icons.Default.ReceiptLong, Icons.Outlined.ReceiptLong),
+            Triple(AppTab.AI, Icons.Default.AutoAwesome, Icons.Outlined.AutoAwesome),
             Triple(AppTab.HISTORY, Icons.Default.History, Icons.Outlined.History),
             Triple(AppTab.SETTINGS, Icons.Default.Settings, Icons.Outlined.Settings)
         )

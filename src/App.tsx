@@ -16,6 +16,7 @@ import { BalanceScreen } from './components/screens/BalanceScreen';
 import { CostsScreen } from './components/screens/CostsScreen';
 import { HistoryScreen } from './components/screens/HistoryScreen';
 import { SettingsScreen } from './components/screens/SettingsScreen';
+import { AIChatScreen } from './components/screens/AIChatScreen';
 
 const MainAppContent: React.FC = () => {
   const { room, activeTab, joinRoomByCode } = useApp();
@@ -48,6 +49,7 @@ const MainAppContent: React.FC = () => {
         {activeTab === 'members' && <MembersScreen />}
         {activeTab === 'balance' && <BalanceScreen />}
         {activeTab === 'costs' && <CostsScreen />}
+        {activeTab === 'ai' && <AIChatScreen />}
         {activeTab === 'history' && <HistoryScreen />}
         {activeTab === 'settings' && <SettingsScreen />}
       </main>

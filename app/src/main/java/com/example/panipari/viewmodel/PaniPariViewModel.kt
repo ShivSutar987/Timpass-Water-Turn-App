@@ -13,6 +13,7 @@ enum class AppTab(val title: String) {
     MEMBERS("Roommates"),
     BALANCE("Balance"),
     COSTS("Costs"),
+    AI("AI Help"),
     HISTORY("History"),
     SETTINGS("Settings")
 }

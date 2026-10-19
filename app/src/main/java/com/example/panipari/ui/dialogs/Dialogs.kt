@@ -549,6 +549,7 @@ fun QRShareDialog(
     onDismiss: () -> Unit
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -558,48 +559,50 @@ fun QRShareDialog(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(24.dp)
+                    .padding(20.dp)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(Sky600),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(imageVector = Icons.Default.QrCode, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                    Column {
+                        Text(text = room.name, fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        Text(text = "Scan to Join Flat Rotation", fontSize = 11.sp, color = Slate400)
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Slate400)
+                    }
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = room.name, fontSize = 20.sp, fontWeight = FontWeight.Black, color = Color.White)
-                    Text(text = "Flat Join Code", fontSize = 12.sp, color = Slate400)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Slate950)
-                        .border(1.dp, Cyan400, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 24.dp, vertical = 14.dp)
-                ) {
-                    Text(
-                        text = room.code,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        letterSpacing = 4.sp
-                    )
-                }
-
-                Text(
-                    text = "Flatmates can enter this 6-character code in PaniPari to join this flat.",
-                    fontSize = 11.sp,
-                    color = Slate400,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                // Render Canvas-based QR Code
+                com.example.panipari.ui.components.QRCodeView(
+                    data = room.code,
+                    sizeDp = 180.dp,
+                    moduleColor = Sky600
                 )
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Slate950)
+                        .border(1.dp, Cyan400.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "ROOM CODE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Cyan400, letterSpacing = 1.sp)
+                        Text(
+                            text = room.code,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 3.sp
+                        )
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -610,24 +613,37 @@ fun QRShareDialog(
                             clipboardManager.setText(AnnotatedString(room.code))
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Sky600)
+                        colors = ButtonDefaults.buttonColors(containerColor = Sky600),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Copy Code")
+                        Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Copy Code", fontSize = 12.sp)
                     }
+
                     Button(
-                        onClick = onDismiss,
+                        onClick = {
+                            val sendIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(Intent.EXTRA_TEXT, "Join our flat ${room.name} on PaniPari to track ${room.itemName} turns! Room Code: ${room.code}")
+                                type = "text/plain"
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "Share Room Code"))
+                        },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Slate800)
+                        colors = ButtonDefaults.buttonColors(containerColor = Slate800),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Close", color = Color.White)
+                        Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = Cyan400, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Share", color = Cyan400, fontSize = 12.sp)
                     }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun AddMemberDialog(

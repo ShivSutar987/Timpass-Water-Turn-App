@@ -23,6 +23,7 @@ import { useApp } from '../../context/AppContext';
 import { ClaimModal } from '../modals/ClaimModal';
 import { DisputeModal } from '../modals/DisputeModal';
 import { NudgeModal } from '../modals/NudgeModal';
+import { WaterCan3D } from '../common/WaterCan3D';
 import { Claim } from '../../types';
 
 export const HomeScreen: React.FC = () => {
@@ -250,6 +251,33 @@ export const HomeScreen: React.FC = () => {
             </p>
           </div>
         )}
+      </div>
+
+      {/* 3D Hydration Hub (Three.js Interactive Procedural Model) */}
+      <WaterCan3D itemName={room.itemName || '20L Water Can'} />
+
+      {/* PaniPari AI Mediator Quick Prompt Card */}
+      <div
+        onClick={() => setActiveTab('ai')}
+        className="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-950/70 via-slate-900 to-sky-950/70 border border-cyan-500/30 text-slate-200 flex items-center justify-between cursor-pointer hover:border-cyan-400/50 transition-all shadow-lg active:scale-98"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-300">
+            <Sparkles className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-white">Ask PaniPari AI</h4>
+              <span className="text-[9px] bg-cyan-900/60 text-cyan-300 px-1.5 py-0.2 rounded font-semibold border border-cyan-500/30">
+                Gemini
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Need to resolve a dispute, draft a polite nudge, or clarify balances?
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-bold text-cyan-400 shrink-0">Chat →</span>
       </div>
 
       {/* 4. TWO BIG ACTION BUTTONS (Section 3 & Section 2: Usable in 10 seconds) */}

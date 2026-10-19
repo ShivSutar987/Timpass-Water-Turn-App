@@ -149,6 +149,13 @@ class MainActivity : ComponentActivity() {
                                         onOpenSettleDialog = { viewModel.showSettleDialogForDebt.value = it }
                                     )
 
+                                    AppTab.AI -> AIChatScreen(
+                                        room = currentRoom,
+                                        members = members,
+                                        fairTurn = fairTurn,
+                                        activeMemberId = activeMemberId
+                                    )
+
                                     AppTab.HISTORY -> HistoryScreen(
                                         auditEvents = auditEvents,
                                         members = members

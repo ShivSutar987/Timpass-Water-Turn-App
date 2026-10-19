@@ -3,14 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import {
+  Check,
   Clock,
   Copy,
+  Download,
+  ExternalLink,
   FastForward,
   LogOut,
+  Maximize2,
   QrCode,
   Save,
+  Share2,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -43,6 +49,29 @@ export const SettingsScreen: React.FC = () => {
   const [showTestRunner, setShowTestRunner] = useState(false);
   const [simulating, setSimulating] = useState(false);
 
+  // QR Code generator states
+  const [qrSrc, setQrSrc] = useState<string>('');
+  const [qrType, setQrType] = useState<'link' | 'code'>('link');
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const joinUrl = typeof window !== 'undefined' && room ? `${window.location.origin}?join=${room.code}` : '';
+
+  useEffect(() => {
+    if (!room) return;
+    const payload = qrType === 'link' ? joinUrl : room.code;
+    QRCode.toDataURL(payload, {
+      width: 240,
+      margin: 2,
+      color: {
+        dark: '#0369a1',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => setQrSrc(url))
+      .catch((err) => console.error('Error generating QR code in Settings', err));
+  }, [room?.code, qrType, joinUrl]);
+
   if (!room) return null;
 
   const handleSave = async (e: React.FormEvent) => {
@@ -59,9 +88,38 @@ export const SettingsScreen: React.FC = () => {
   const copyCode = async () => {
     try {
       await navigator.clipboard.writeText(room.code);
+      setCopiedCode(true);
       showToast(`Copied room code: ${room.code}`, 'success');
+      setTimeout(() => setCopiedCode(false), 2000);
     } catch {
       //
+    }
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      setCopiedLink(true);
+      showToast('Copied direct join link to clipboard!', 'success');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      //
+    }
+  };
+
+  const shareInvite = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Join ${room.name} on PaniPari`,
+          text: `Join our flat on PaniPari to track ${room.itemName} turns! Room Code: ${room.code}`,
+          url: joinUrl,
+        });
+      } catch {
+        // User cancelled
+      }
+    } else {
+      copyLink();
     }
   };
 
@@ -80,34 +138,124 @@ export const SettingsScreen: React.FC = () => {
         </p>
       </div>
 
-      {/* Share Room Code & QR Card */}
-      <div className="p-4 rounded-3xl bg-gradient-to-r from-cyan-950/60 to-slate-900 border border-cyan-500/30 shadow-xl flex items-center justify-between">
-        <div>
-          <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
-            Room Code
-          </span>
-          <div className="text-2xl font-black tracking-widest text-white font-mono mt-0.5">
-            {room.code}
+      {/* Embedded Live QR Code & Sharing Card */}
+      <div className="p-5 rounded-3xl bg-gradient-to-b from-slate-900 to-slate-950 border border-cyan-500/30 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <QrCode className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Instant Room QR</h3>
+              <p className="text-[11px] text-slate-400">Scan to join {room.name}</p>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">
-            Share with flatmates to let them join
+
+          {/* Mode Switcher */}
+          <div className="flex rounded-lg bg-slate-950 p-1 border border-slate-800 text-[10px]">
+            <button
+              onClick={() => setQrType('link')}
+              className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                qrType === 'link'
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Direct Link
+            </button>
+            <button
+              onClick={() => setQrType('code')}
+              className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                qrType === 'code'
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Code Only
+            </button>
+          </div>
+        </div>
+
+        {/* QR Code Canvas Frame */}
+        <div className="flex flex-col items-center justify-center pt-1">
+          <div className="relative group p-3 bg-white rounded-2xl shadow-xl shadow-cyan-950/40 border-4 border-cyan-400/30">
+            {qrSrc ? (
+              <img
+                src={qrSrc}
+                alt={`QR code for room ${room.code}`}
+                className="w-44 h-44 rounded-xl object-contain"
+              />
+            ) : (
+              <div className="w-44 h-44 flex items-center justify-center text-slate-400 text-xs">
+                Generating QR...
+              </div>
+            )}
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 rounded-2xl flex flex-col items-center justify-center text-white text-xs font-bold transition-opacity"
+            >
+              <Maximize2 className="w-6 h-6 mb-1 text-cyan-300" />
+              <span>Tap to Enlarge</span>
+            </button>
+          </div>
+
+          <p className="text-[11px] text-slate-400 mt-2.5 text-center">
+            {qrType === 'link'
+              ? 'Point phone camera at QR to join flat instantly in browser'
+              : `Point camera to scan the 6-character code: ${room.code}`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* 6-Character Room Code Banner */}
+        <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-3 flex items-center justify-between">
+          <div>
+            <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest block">
+              Room Code
+            </span>
+            <span className="text-2xl font-black tracking-widest text-white font-mono">
+              {room.code}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={copyCode}
+              className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold transition active:scale-95 ${
+                copiedCode
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700'
+              }`}
+              title="Copy Room Code"
+            >
+              {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
+            </button>
+
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition active:scale-95 border border-slate-700"
+              title="Enlarge QR"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Action Buttons: Share Link & Copy Link */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
           <button
-            onClick={copyCode}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 transition active:scale-95"
-            title="Copy Code"
+            onClick={shareInvite}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md shadow-cyan-600/30 transition active:scale-95"
           >
-            <Copy className="w-4 h-4" />
+            <Share2 className="w-4 h-4" />
+            <span>Share Invite</span>
           </button>
           <button
-            onClick={() => setShowQRModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs shadow-md transition active:scale-95"
+            onClick={copyLink}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition active:scale-95"
           >
-            <QrCode className="w-4 h-4" />
-            <span>Show QR</span>
+            {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
+            <span>{copiedLink ? 'Link Copied!' : 'Copy Join Link'}</span>
           </button>
         </div>
       </div>

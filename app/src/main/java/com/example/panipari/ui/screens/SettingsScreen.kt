@@ -1,6 +1,8 @@
 package com.example.panipari.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,46 +67,122 @@ fun SettingsScreen(
             )
         }
 
-        // Room Code Card
+        // Embedded Instant Room QR Card
+        val context = androidx.compose.ui.platform.LocalContext.current
+
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(24.dp),
             color = Slate900,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Cyan400.copy(alpha = 0.3f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Cyan400.copy(alpha = 0.35f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column {
-                    Text(text = "ROOM CODE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Cyan400, letterSpacing = 1.sp)
-                    Text(
-                        text = room.code,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        letterSpacing = 2.sp
-                    )
-                    Text(text = "Share with flatmates to let them join", fontSize = 11.sp, color = Slate400)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Cyan950),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(imageVector = Icons.Default.QrCode, contentDescription = null, tint = Cyan400, modifier = Modifier.size(18.dp))
+                        }
+                        Column {
+                            Text(text = "Instant Room QR", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(text = "Scan to join ${room.name}", fontSize = 11.sp, color = Slate400)
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onShowQR,
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = Slate800),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Fullscreen, contentDescription = "Enlarge", tint = Cyan400, modifier = Modifier.size(18.dp))
+                    }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(
-                        onClick = { clipboardManager.setText(AnnotatedString(room.code)) },
-                        colors = IconButtonDefaults.iconButtonColors(containerColor = Slate800)
+                // Visual QR Code
+                com.example.panipari.ui.components.QRCodeView(
+                    data = room.code,
+                    sizeDp = 160.dp,
+                    moduleColor = Sky600
+                )
+
+                Text(
+                    text = "Point camera at QR or enter the 6-character code below",
+                    fontSize = 11.sp,
+                    color = Slate400
+                )
+
+                // Room Code Banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Slate950)
+                        .border(1.dp, Slate800, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy", tint = Cyan400)
+                        Column {
+                            Text(text = "ROOM CODE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Cyan400, letterSpacing = 1.sp)
+                            Text(
+                                text = room.code,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                letterSpacing = 3.sp
+                            )
+                        }
+
+                        Button(
+                            onClick = { clipboardManager.setText(AnnotatedString(room.code)) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Slate800),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = Cyan400, modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Copy", color = Cyan400, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
-                    Button(
-                        onClick = onShowQR,
-                        colors = ButtonDefaults.buttonColors(containerColor = Sky600),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("QR")
-                    }
+                }
+
+                // Share Button
+                Button(
+                    onClick = {
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, "Join our flat ${room.name} on PaniPari to track ${room.itemName} turns! Room Code: ${room.code}")
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share Room Code"))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sky600),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Share Room Code with Flatmates", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }

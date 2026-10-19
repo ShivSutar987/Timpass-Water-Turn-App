@@ -46,8 +46,8 @@ interface AppContextType {
   activeMember: Member | null;
   theme: 'dark' | 'light';
   setTheme: (theme: 'dark' | 'light') => void;
-  activeTab: 'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings';
-  setActiveTab: (tab: 'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings') => void;
+  activeTab: 'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings' | 'ai';
+  setActiveTab: (tab: 'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings' | 'ai') => void;
 
   // Actions
   createRoom: (roomName: string, itemName: string, itemUnit: string, creatorName: string) => Promise<boolean>;
@@ -114,7 +114,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [presenceChanges, setPresenceChanges] = useState<PresenceChange[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
-  const [activeTab, setActiveTab] = useState<'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings' | 'ai'>('home');
   const [toasts, setToasts] = useState<ToastState[]>([]);
 
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
