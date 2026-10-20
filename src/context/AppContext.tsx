@@ -25,6 +25,7 @@ import {
   getStorage,
   resetDemoStorage,
   StorageAdapter,
+  LocalStorageAdapter,
 } from '../services/storage';
 
 interface ToastState {
@@ -49,9 +50,23 @@ interface AppContextType {
   activeTab: 'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings' | 'ai';
   setActiveTab: (tab: 'home' | 'members' | 'balance' | 'costs' | 'history' | 'settings' | 'ai') => void;
 
+  savedRooms: Room[];
+  openSavedRoom: (roomId: string) => Promise<void>;
+  deleteSavedRoom: (roomId: string) => Promise<void>;
+
   // Actions
   createRoom: (roomName: string, itemName: string, itemUnit: string, creatorName: string) => Promise<boolean>;
-  joinRoomByCode: (code: string) => Promise<boolean>;
+  joinRoomByCode: (
+    code: string,
+    joinerName?: string,
+    parsedDetails?: {
+      name?: string;
+      item?: string;
+      unit?: string;
+      members?: any[];
+      cost?: number;
+    }
+  ) => Promise<boolean>;
   leaveRoom: () => void;
   startDemo: () => void;
   exitDemo: () => void;
@@ -76,7 +91,9 @@ interface AppContextType {
   toasts: ToastState[];
   showToast: (message: string, type?: 'success' | 'info' | 'error' | 'warning') => void;
   removeToast: (id: string) => void;
-  refreshData: () => Promise<void>;
+  refreshData: (targetRoomId?: string) => Promise<void>;
+  exportFlatData: () => Promise<string>;
+  importFlatData: (jsonString: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -175,8 +192,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return getStorage(isDemo);
   }, [isDemo]);
 
-  const refreshData = useCallback(async () => {
-    if (!activeRoomId) {
+  const [savedRooms, setSavedRooms] = useState<Room[]>([]);
+
+  const refreshData = useCallback(async (targetRoomId?: string) => {
+    try {
+      const allRooms = await storage.getAllRooms();
+      setSavedRooms(allRooms);
+    } catch {
+      //
+    }
+
+    const roomIdToLoad = targetRoomId !== undefined ? targetRoomId : activeRoomId;
+
+    if (!roomIdToLoad) {
       setRoom(null);
       setMembers([]);
       setPresenceChanges([]);
@@ -187,14 +215,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       // Check auto confirmations first
-      await storage.checkAutoConfirmations(activeRoomId);
+      await storage.checkAutoConfirmations(roomIdToLoad);
 
       const [r, mems, pres, clms, evts] = await Promise.all([
-        storage.getRoom(activeRoomId),
-        storage.getMembers(activeRoomId),
-        storage.getPresenceChanges(activeRoomId),
-        storage.getClaims(activeRoomId),
-        storage.getAuditEvents(activeRoomId),
+        storage.getRoom(roomIdToLoad),
+        storage.getMembers(roomIdToLoad),
+        storage.getPresenceChanges(roomIdToLoad),
+        storage.getClaims(roomIdToLoad),
+        storage.getAuditEvents(roomIdToLoad),
       ]);
 
       setRoom(r);
@@ -283,16 +311,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('panipari_active_room_id', roomId);
     setActiveMemberId(creatorMember.id);
 
+    await refreshData(roomId);
     showToast(`Room "${newRoom.name}" created! Room Code: ${code}`, 'success');
     return true;
   };
 
-  const joinRoomByCode = async (code: string): Promise<boolean> => {
+  const joinRoomByCode = async (
+    code: string,
+    joinerName?: string,
+    parsedDetails?: {
+      name?: string;
+      item?: string;
+      unit?: string;
+      members?: any[];
+      cost?: number;
+    }
+  ): Promise<boolean> => {
+    const cleanCode = code.trim().toUpperCase();
     const targetStorage = getStorage(false);
-    const foundRoom = await targetStorage.getRoomByCode(code);
+    let foundRoom = await targetStorage.getRoomByCode(cleanCode);
+
     if (!foundRoom) {
-      showToast('Room not found. Please double check the 6-character room code.', 'error');
-      return false;
+      // Create/import flat connection for friend's invite so it's permanently on their phone
+      const newRoom: Room = {
+        id: 'room_' + Math.random().toString(36).substring(2, 10),
+        code: cleanCode,
+        name: parsedDetails?.name || `Flat ${cleanCode}`,
+        itemName: parsedDetails?.item || '20L Water Can',
+        itemUnit: parsedDetails?.unit || 'Can',
+        autoConfirmHours: 24,
+        defaultCost: parsedDetails?.cost || 35,
+        currency: '₹',
+        createdAt: Date.now(),
+        emptyAlert: null,
+      };
+      await targetStorage.saveRoom(newRoom);
+      foundRoom = newRoom;
+
+      // Import roommates if included in QR/invite payload
+      if (Array.isArray(parsedDetails?.members) && parsedDetails.members.length > 0) {
+        for (const im of parsedDetails.members) {
+          if (im && im.name) {
+            await targetStorage.addMember({
+              id: im.id || 'mem_' + Math.random().toString(36).substring(2, 10),
+              roomId: newRoom.id,
+              name: im.name,
+              color: im.color || DEFAULT_COLORS[0],
+              emoji: im.emoji || DEFAULT_EMOJIS[0],
+              joinedAt: Date.now(),
+              isArchived: false,
+            });
+          }
+        }
+      }
     }
 
     setIsDemo(false);
@@ -301,12 +372,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('panipari_active_room_id', foundRoom.id);
 
     const mems = await targetStorage.getMembers(foundRoom.id);
-    if (mems.length > 0) {
-      setActiveMemberId(mems[0].id);
+    let myMemberId: string | null = null;
+    if (joinerName && joinerName.trim()) {
+      const existing = mems.find((m) => m.name.toLowerCase() === joinerName.trim().toLowerCase());
+      if (existing) {
+        myMemberId = existing.id;
+      } else {
+        const newMember: Member = {
+          id: 'mem_' + Math.random().toString(36).substring(2, 10),
+          roomId: foundRoom.id,
+          name: joinerName.trim(),
+          color: DEFAULT_COLORS[mems.length % DEFAULT_COLORS.length],
+          emoji: DEFAULT_EMOJIS[mems.length % DEFAULT_EMOJIS.length],
+          joinedAt: Date.now(),
+          isArchived: false,
+        };
+        await targetStorage.addMember(newMember);
+        myMemberId = newMember.id;
+      }
+    } else if (mems.length > 0) {
+      myMemberId = mems[0].id;
     }
 
-    showToast(`Joined ${foundRoom.name}!`, 'success');
+    if (myMemberId) {
+      setActiveMemberId(myMemberId);
+    }
+
+    await refreshData(foundRoom.id);
+    showToast(`Joined ${foundRoom.name}! Saved permanently to your phone.`, 'success');
     return true;
+  };
+
+  const openSavedRoom = async (roomId: string) => {
+    setIsDemo(false);
+    sessionStorage.removeItem('panipari_is_demo');
+    setActiveRoomId(roomId);
+    localStorage.setItem('panipari_active_room_id', roomId);
+    await refreshData(roomId);
+    showToast('Opened flat from phone storage.', 'info');
+  };
+
+  const deleteSavedRoom = async (roomId: string) => {
+    const targetStorage = getStorage(false);
+    await targetStorage.deleteRoom(roomId);
+    if (activeRoomId === roomId) {
+      leaveRoom();
+    }
+    await refreshData();
+    showToast('Flat removed from phone.', 'info');
   };
 
   const leaveRoom = () => {
@@ -314,7 +427,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('panipari_active_room_id');
     setIsDemo(false);
     sessionStorage.removeItem('panipari_is_demo');
-    showToast('Left the room.', 'info');
+    setRoom(null);
+    refreshData(null as any);
+    showToast('Logged out of flat. Rejoin anytime from your saved flats list.', 'info');
+  };
+
+  const exportFlatData = async (): Promise<string> => {
+    if (!room) throw new Error('No active room to export');
+    const local = new LocalStorageAdapter();
+    return await local.exportRoomBackup(room.id);
+  };
+
+  const importFlatData = async (jsonString: string): Promise<boolean> => {
+    try {
+      const local = new LocalStorageAdapter();
+      const imported = await local.importRoomBackup(jsonString);
+      setIsDemo(false);
+      sessionStorage.removeItem('panipari_is_demo');
+      setActiveRoomId(imported.id);
+      localStorage.setItem('panipari_active_room_id', imported.id);
+      await refreshData(imported.id);
+      showToast(`Restored flat "${imported.name}" from backup!`, 'success');
+      return true;
+    } catch (e: any) {
+      showToast(`Import failed: ${e.message}`, 'error');
+      return false;
+    }
   };
 
   const startDemo = () => {
@@ -324,6 +462,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveRoomId('demo-room-402');
     setActiveMemberId('demo-aarav');
     setActiveTab('home');
+    refreshData('demo-room-402');
     showToast('Demo mode active! Runs in memory without touching real data.', 'info');
   };
 
@@ -333,6 +472,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sessionStorage.removeItem('panipari_is_demo');
     const realRoomId = localStorage.getItem('panipari_active_room_id');
     setActiveRoomId(realRoomId);
+    refreshData(realRoomId || undefined);
     showToast('Exited demo mode. Welcome back!', 'info');
   };
 
@@ -551,6 +691,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTheme,
         activeTab,
         setActiveTab,
+        savedRooms,
+        openSavedRoom,
+        deleteSavedRoom,
         createRoom,
         joinRoomByCode,
         leaveRoom,
@@ -574,6 +717,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast,
         removeToast,
         refreshData,
+        exportFlatData,
+        importFlatData,
       }}
     >
       {children}

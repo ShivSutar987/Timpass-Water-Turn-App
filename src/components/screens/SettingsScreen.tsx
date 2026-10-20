@@ -12,6 +12,7 @@ import {
   Download,
   ExternalLink,
   FastForward,
+  HardDrive,
   LogOut,
   Maximize2,
   QrCode,
@@ -20,6 +21,7 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
+  Upload,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { QRShareModal } from '../modals/QRShareModal';
@@ -33,6 +35,8 @@ export const SettingsScreen: React.FC = () => {
     fastForwardTime,
     showToast,
     isDemo,
+    exportFlatData,
+    importFlatData,
   } = useApp();
 
   const [name, setName] = useState(room?.name || '');
@@ -393,18 +397,125 @@ export const SettingsScreen: React.FC = () => {
         </button>
       </div>
 
+      {/* Mobile App & APK Download Card */}
+      <div className="p-4 rounded-3xl bg-slate-900 border border-cyan-500/30 space-y-3 shadow-xl">
+        <div className="flex items-center gap-2">
+          <Smartphone className="w-4 h-4 text-cyan-400" />
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+            Mobile Phone Installation (APK)
+          </h3>
+        </div>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          Install PaniPari directly on your Android phone for camera QR scanning, zero-latency rotation tracking, and permanent storage:
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <a
+            href="/PaniPari.apk"
+            download="PaniPari.apk"
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-600/30 transition active:scale-95 text-center"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download APK (17MB)</span>
+          </a>
+          <button
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({
+                  title: 'PaniPari Android App',
+                  text: 'Download PaniPari app to track flat turns!',
+                  url: window.location.origin,
+                });
+              } else {
+                navigator.clipboard.writeText(window.location.origin);
+                showToast('Copied app link to share!', 'success');
+              }
+            }}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-semibold transition active:scale-95"
+          >
+            <Share2 className="w-4 h-4" />
+            <span>Share App Link</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Phone Mobile Storage & Offline Backup */}
+      <div className="p-4 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              Phone Storage &amp; Backup
+            </h3>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
+            Persistent On-Device
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          All flat turns, history, and balances are stored securely in your phone&apos;s mobile storage. Export a backup file to your device Downloads or restore a previous flat:
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const json = await exportFlatData();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `PaniPari_${room.code}_Backup.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Flat backup saved to your mobile Downloads folder!', 'success');
+              } catch (e: any) {
+                showToast(`Export failed: ${e.message}`, 'error');
+              }
+            }}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold text-xs border border-slate-700 transition active:scale-95"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export Backup (.json)</span>
+          </button>
+
+          <label className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 cursor-pointer transition active:scale-95">
+            <Upload className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Restore from File</span>
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const text = await file.text();
+                  await importFlatData(text);
+                } catch (err: any) {
+                  showToast(`Could not read backup file: ${err.message}`, 'error');
+                }
+                e.target.value = '';
+              }}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Leave Room Action */}
       <div className="pt-2">
         <button
           onClick={() => {
-            if (confirm('Leave this room? You can rejoin anytime with the 6-character room code.')) {
+            if (confirm('Leave this flat? Don\'t worry, your flat is saved in this phone\'s storage and you can switch back anytime!')) {
               leaveRoom();
             }
           }}
           className="w-full py-3 rounded-2xl bg-rose-950/20 hover:bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95"
         >
           <LogOut className="w-4 h-4" />
-          <span>Leave Room</span>
+          <span>Leave Room (Saved to Phone)</span>
         </button>
       </div>
 

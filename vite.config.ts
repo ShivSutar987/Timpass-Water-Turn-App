@@ -4,9 +4,12 @@ import path from 'path';
 import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
+import { roomApiPlugin } from './src/server/roomApiPlugin';
+
 export default defineConfig(() => {
   return {
     plugins: [
+      roomApiPlugin(),
       react(),
       tailwindcss(),
       VitePWA({

@@ -21,12 +21,34 @@ import { AIChatScreen } from './components/screens/AIChatScreen';
 const MainAppContent: React.FC = () => {
   const { room, activeTab, joinRoomByCode } = useApp();
 
-  // Support direct ?join=ROOMCODE url parameter
+  // Support direct ?join=ROOMCODE url parameter with optional encoded metadata
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const joinCode = params.get('join');
+    const encodedData = params.get('d') || params.get('data');
     if (joinCode && !room) {
-      joinRoomByCode(joinCode.toUpperCase());
+      let parsed: any = undefined;
+      if (encodedData) {
+        try {
+          const decoded = decodeURIComponent(escape(atob(encodedData)));
+          parsed = JSON.parse(decoded);
+        } catch {
+          // ignore
+        }
+      }
+      joinRoomByCode(
+        joinCode.toUpperCase(),
+        undefined,
+        parsed
+          ? {
+              name: parsed.n,
+              item: parsed.i,
+              unit: parsed.u,
+              members: parsed.m,
+              cost: parsed.cost,
+            }
+          : undefined
+      );
     }
   }, [joinRoomByCode, room]);
 

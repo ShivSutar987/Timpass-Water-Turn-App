@@ -578,9 +578,11 @@ fun QRShareDialog(
                     }
                 }
 
+                val inviteUri = "panipari://join?c=${room.code}&n=${java.net.URLEncoder.encode(room.name, "UTF-8")}&i=${java.net.URLEncoder.encode(room.itemName, "UTF-8")}&u=${java.net.URLEncoder.encode(room.itemUnit, "UTF-8")}"
+
                 // Render Canvas-based QR Code
                 com.example.panipari.ui.components.QRCodeView(
-                    data = room.code,
+                    data = inviteUri,
                     sizeDp = 180.dp,
                     moduleColor = Sky600
                 )
@@ -623,12 +625,18 @@ fun QRShareDialog(
 
                     Button(
                         onClick = {
+                            val shareMessage = "💧 Join our flat ${room.name} on PaniPari!\n" +
+                                "📦 Tracking: ${room.itemName}\n" +
+                                "🔑 Room Code: ${room.code}\n" +
+                                "👉 Direct Link: $inviteUri\n\n" +
+                                "Scan the QR in PaniPari or enter code ${room.code} to join!"
+
                             val sendIntent = Intent().apply {
                                 action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, "Join our flat ${room.name} on PaniPari to track ${room.itemName} turns! Room Code: ${room.code}")
+                                putExtra(Intent.EXTRA_TEXT, shareMessage)
                                 type = "text/plain"
                             }
-                            context.startActivity(Intent.createChooser(sendIntent, "Share Room Code"))
+                            context.startActivity(Intent.createChooser(sendIntent, "Share Room Invite"))
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Slate800),

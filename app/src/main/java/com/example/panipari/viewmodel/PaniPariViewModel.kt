@@ -29,6 +29,8 @@ class PaniPariViewModel(
     val auditEvents = repository.auditEvents
     val activeMemberId = repository.activeMemberId
     val isDemo = repository.isDemo
+    val savedRooms = repository.savedRooms
+    val storage = repository
 
     private val _activeTab = MutableStateFlow(AppTab.HOME)
     val activeTab: StateFlow<AppTab> = _activeTab.asStateFlow()
@@ -43,6 +45,7 @@ class PaniPariViewModel(
     var showWhyDialogForMember = MutableStateFlow<Pair<Member, MemberBalanceCalculation>?>(null)
     var showSettleDialogForDebt = MutableStateFlow<PairwiseDebt?>(null)
     var showQrShareDialog = MutableStateFlow(false)
+    var showQrScannerDialog = MutableStateFlow(false)
     var showAddMemberDialog = MutableStateFlow(false)
 
     val fairTurnResult: StateFlow<FairTurnResult> = combine(
@@ -84,17 +87,35 @@ class PaniPariViewModel(
     fun createRoom(name: String, itemName: String, itemUnit: String, creatorName: String) {
         if (repository.createRoom(name, itemName, itemUnit, creatorName)) {
             _activeTab.value = AppTab.HOME
-            showToast("Room created! Share code with flatmates.")
+            showToast("Room created! Saved permanently to phone storage.")
         }
     }
 
-    fun joinRoom(code: String) {
-        if (repository.joinRoomByCode(code)) {
+    fun joinRoom(code: String, userName: String? = null, parsedInvite: Any? = null) {
+        if (repository.joinRoomByCode(code, userName)) {
             _activeTab.value = AppTab.HOME
-            showToast("Joined flat successfully!")
+            showToast("Joined flat successfully! Saved to phone.")
         } else {
             showToast("Room code not found. Try 'DEMO42'")
         }
+    }
+
+    fun openSavedRoom(roomId: String) {
+        if (repository.openSavedRoom(roomId)) {
+            _activeTab.value = AppTab.HOME
+            showToast("Opened flat from phone storage")
+        }
+    }
+
+    fun deleteSavedRoom(roomId: String) {
+        repository.deleteSavedRoom(roomId)
+        showToast("Flat removed from phone storage")
+    }
+
+    fun leaveRoom() {
+        repository.leaveRoom()
+        _activeTab.value = AppTab.HOME
+        showToast("Left flat. Rejoin anytime from your saved flats list.")
     }
 
     fun startDemo() {

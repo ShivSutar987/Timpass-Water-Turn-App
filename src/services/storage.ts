@@ -15,7 +15,9 @@ import {
 export interface StorageAdapter {
   getRoom(roomId: string): Promise<Room | null>;
   getRoomByCode(code: string): Promise<Room | null>;
+  getAllRooms(): Promise<Room[]>;
   saveRoom(room: Room): Promise<void>;
+  deleteRoom(roomId: string): Promise<void>;
 
   getMembers(roomId: string): Promise<Member[]>;
   addMember(member: Member): Promise<void>;
@@ -129,7 +131,47 @@ export class LocalStorageAdapter implements StorageAdapter {
   async getRoomByCode(code: string): Promise<Room | null> {
     const rooms = this.read<Room[]>(this.getKey('rooms'), []);
     const normalized = code.trim().toUpperCase();
-    return rooms.find((r) => r.code.toUpperCase() === normalized) || null;
+    const local = rooms.find((r) => r.code.toUpperCase() === normalized);
+    if (local) return local;
+
+    // Cross-phone sync: fetch room from server API if not on this phone
+    try {
+      const res = await fetch(`/api/rooms/${normalized}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data?.room) {
+          const remote = json.data;
+          await this.saveRoom(remote.room);
+          if (remote.members?.length) {
+            this.write(this.getKey('members', remote.room.id), remote.members);
+          }
+          if (remote.presence?.length) {
+            this.write(this.getKey('presence', remote.room.id), remote.presence);
+          }
+          if (remote.claims?.length) {
+            this.write(this.getKey('claims', remote.room.id), remote.claims);
+          }
+          if (remote.events?.length) {
+            this.write(this.getKey('events', remote.room.id), remote.events);
+          }
+          return remote.room;
+        }
+      }
+    } catch {
+      // Offline fallback
+    }
+
+    return null;
+  }
+
+  async getAllRooms(): Promise<Room[]> {
+    const rooms = this.read<Room[]>(this.getKey('rooms'), []);
+    return rooms.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+
+  async deleteRoom(roomId: string): Promise<void> {
+    const rooms = this.read<Room[]>(this.getKey('rooms'), []);
+    this.write(this.getKey('rooms'), rooms.filter((r) => r.id !== roomId));
   }
 
   async saveRoom(room: Room): Promise<void> {
@@ -141,6 +183,69 @@ export class LocalStorageAdapter implements StorageAdapter {
       rooms.push(room);
     }
     this.write(this.getKey('rooms'), rooms);
+    this.syncToServer(room.id);
+  }
+
+  async syncToServer(roomId: string): Promise<void> {
+    try {
+      const room = await this.getRoom(roomId);
+      if (!room) return;
+      const members = await this.getMembers(roomId);
+      const presence = await this.getPresenceChanges(roomId);
+      const claims = await this.getClaims(roomId);
+      const events = await this.getAuditEvents(roomId);
+
+      fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room, members, presence, claims, events }),
+      }).catch(() => {});
+    } catch {
+      // Offline fallback
+    }
+  }
+
+  async exportRoomBackup(roomId: string): Promise<string> {
+    const room = await this.getRoom(roomId);
+    if (!room) throw new Error('Room not found');
+    const members = await this.getMembers(roomId);
+    const presence = await this.getPresenceChanges(roomId);
+    const claims = await this.getClaims(roomId);
+    const events = await this.getAuditEvents(roomId);
+
+    return JSON.stringify({
+      version: '1.0',
+      app: 'PaniPari',
+      exportedAt: Date.now(),
+      room,
+      members,
+      presence,
+      claims,
+      events,
+    }, null, 2);
+  }
+
+  async importRoomBackup(jsonString: string): Promise<Room> {
+    const parsed = JSON.parse(jsonString);
+    if (!parsed.room || !parsed.room.id || !parsed.room.code) {
+      throw new Error('Invalid PaniPari backup file');
+    }
+    const r = parsed.room as Room;
+    await this.saveRoom(r);
+    if (Array.isArray(parsed.members)) {
+      this.write(this.getKey('members', r.id), parsed.members);
+    }
+    if (Array.isArray(parsed.presence)) {
+      this.write(this.getKey('presence', r.id), parsed.presence);
+    }
+    if (Array.isArray(parsed.claims)) {
+      this.write(this.getKey('claims', r.id), parsed.claims);
+    }
+    if (Array.isArray(parsed.events)) {
+      this.write(this.getKey('events', r.id), parsed.events);
+    }
+    this.syncToServer(r.id);
+    return r;
   }
 
   async getMembers(roomId: string): Promise<Member[]> {
@@ -150,8 +255,10 @@ export class LocalStorageAdapter implements StorageAdapter {
 
   async addMember(member: Member): Promise<void> {
     const members = await this.getMembers(member.roomId);
-    members.push(member);
-    this.write(this.getKey('members', member.roomId), members);
+    if (!members.some((m) => m.id === member.id)) {
+      members.push(member);
+      this.write(this.getKey('members', member.roomId), members);
+    }
 
     await this.addAuditEvent({
       roomId: member.roomId,
@@ -159,6 +266,17 @@ export class LocalStorageAdapter implements StorageAdapter {
       memberId: member.id,
       details: `${member.name} joined the room`,
     });
+
+    // Notify server of member join
+    const room = await this.getRoom(member.roomId);
+    if (room?.code) {
+      fetch(`/api/rooms/${room.code}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member }),
+      }).catch(() => {});
+    }
+    this.syncToServer(member.roomId);
   }
 
   async updateMember(member: Member): Promise<void> {
@@ -781,8 +899,16 @@ export class InMemoryDemoAdapter implements StorageAdapter {
     return null;
   }
 
+  async getAllRooms(): Promise<Room[]> {
+    return Array.from(this.rooms.values());
+  }
+
   async saveRoom(room: Room): Promise<void> {
     this.rooms.set(room.id, room);
+  }
+
+  async deleteRoom(roomId: string): Promise<void> {
+    this.rooms.delete(roomId);
   }
 
   async getMembers(roomId: string): Promise<Member[]> {

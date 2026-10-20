@@ -1,5 +1,6 @@
 package com.example.panipari
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -14,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.panipari.ui.components.AppBottomNav
 import com.example.panipari.ui.components.AppHeader
+import com.example.panipari.ui.components.QRScannerDialog
 import com.example.panipari.ui.dialogs.*
 import com.example.panipari.ui.screens.*
 import com.example.panipari.ui.theme.*
@@ -36,6 +38,7 @@ class MainActivity : ComponentActivity() {
                 val activeMemberId by viewModel.activeMemberId.collectAsStateWithLifecycle()
                 val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
                 val isDemo by viewModel.isDemo.collectAsStateWithLifecycle()
+                val savedRooms by viewModel.savedRooms.collectAsStateWithLifecycle()
                 val fairTurn by viewModel.fairTurnResult.collectAsStateWithLifecycle()
 
                 val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
@@ -45,6 +48,16 @@ class MainActivity : ComponentActivity() {
                     toastMessage?.let {
                         snackbarHostState.showSnackbar(it)
                         viewModel.clearToast()
+                    }
+                }
+
+                // Handle incoming deep link or shared invite text
+                LaunchedEffect(Unit) {
+                    val dataUri = intent?.dataString
+                    val extraText = intent?.getStringExtra(Intent.EXTRA_TEXT)
+                    val incoming = dataUri ?: extraText
+                    if (!incoming.isNullOrBlank()) {
+                        viewModel.joinRoom(incoming)
                     }
                 }
 
@@ -60,6 +73,7 @@ class MainActivity : ComponentActivity() {
                 val whyMember by viewModel.showWhyDialogForMember.collectAsStateWithLifecycle()
                 val settleDebt by viewModel.showSettleDialogForDebt.collectAsStateWithLifecycle()
                 val showQR by viewModel.showQrShareDialog.collectAsStateWithLifecycle()
+                val showQrScanner by viewModel.showQrScannerDialog.collectAsStateWithLifecycle()
                 val showAddMember by viewModel.showAddMemberDialog.collectAsStateWithLifecycle()
 
                 Surface(
@@ -71,10 +85,14 @@ class MainActivity : ComponentActivity() {
                     val currentRoom = room
                     if (currentRoom == null) {
                         WelcomeScreen(
+                            savedRooms = savedRooms,
+                            onOpenSavedRoom = { viewModel.openSavedRoom(it) },
+                            onDeleteSavedRoom = { viewModel.deleteSavedRoom(it) },
+                            onOpenQrScanner = { viewModel.showQrScannerDialog.value = true },
                             onCreateRoom = { name, itemName, unit, creator ->
                                 viewModel.createRoom(name, itemName, unit, creator)
                             },
-                            onJoinRoom = { code -> viewModel.joinRoom(code) },
+                            onJoinRoom = { code, userName -> viewModel.joinRoom(code, userName) },
                             onStartDemo = { viewModel.startDemo() }
                         )
                     } else {
@@ -170,7 +188,7 @@ class MainActivity : ComponentActivity() {
                                         onShowQR = { viewModel.showQrShareDialog.value = true },
                                         onFastForward = { viewModel.fastForwardTime(it) },
                                         onLeaveRoom = {
-                                            if (isDemo) viewModel.exitDemo() else viewModel.exitDemo()
+                                            viewModel.leaveRoom()
                                         }
                                     )
                                 }
@@ -238,6 +256,17 @@ class MainActivity : ComponentActivity() {
                             QRShareDialog(
                                 room = currentRoom,
                                 onDismiss = { viewModel.showQrShareDialog.value = false }
+                            )
+                        }
+
+                        if (showQrScanner) {
+                            QRScannerDialog(
+                                storage = viewModel.storage,
+                                onDismiss = { viewModel.showQrScannerDialog.value = false },
+                                onJoinSuccess = { code, userName, parsedInvite ->
+                                    viewModel.showQrScannerDialog.value = false
+                                    viewModel.joinRoom(code, userName, parsedInvite)
+                                }
                             )
                         }
 

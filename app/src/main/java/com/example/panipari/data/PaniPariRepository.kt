@@ -30,6 +30,18 @@ class PaniPariRepository {
     private val _isDemo = MutableStateFlow<Boolean>(false)
     val isDemo: StateFlow<Boolean> = _isDemo.asStateFlow()
 
+    data class RoomBundle(
+        val room: Room,
+        val members: List<Member>,
+        val presence: List<PresenceChange>,
+        val claims: List<Claim>,
+        val events: List<AuditEvent>
+    )
+
+    private val savedRoomsMap = mutableMapOf<String, RoomBundle>()
+    private val _savedRooms = MutableStateFlow<List<Room>>(emptyList())
+    val savedRooms: StateFlow<List<Room>> = _savedRooms.asStateFlow()
+
     init {
         // By default, start with demo loaded or empty
         startDemo()
@@ -226,6 +238,41 @@ class PaniPariRepository {
         _activeMemberId.value = null
     }
 
+    fun leaveRoom() {
+        val curr = _room.value
+        if (curr != null && !_isDemo.value) {
+            savedRoomsMap[curr.id] = RoomBundle(curr, _members.value, _presenceChanges.value, _claims.value, _auditEvents.value)
+            _savedRooms.value = savedRoomsMap.values.map { it.room }
+        }
+        _room.value = null
+        _members.value = emptyList()
+        _presenceChanges.value = emptyList()
+        _claims.value = emptyList()
+        _auditEvents.value = emptyList()
+        _activeMemberId.value = null
+        _isDemo.value = false
+    }
+
+    fun openSavedRoom(roomId: String): Boolean {
+        val bundle = savedRoomsMap[roomId] ?: return false
+        _room.value = bundle.room
+        _members.value = bundle.members
+        _presenceChanges.value = bundle.presence
+        _claims.value = bundle.claims
+        _auditEvents.value = bundle.events
+        _activeMemberId.value = bundle.members.firstOrNull()?.id
+        _isDemo.value = false
+        return true
+    }
+
+    fun deleteSavedRoom(roomId: String) {
+        savedRoomsMap.remove(roomId)
+        _savedRooms.value = savedRoomsMap.values.map { it.room }
+        if (_room.value?.id == roomId) {
+            leaveRoom()
+        }
+    }
+
     fun createRoom(roomName: String, itemName: String, itemUnit: String, creatorName: String): Boolean {
         val roomId = "rm_" + UUID.randomUUID().toString().substring(0, 8)
         val codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -250,11 +297,7 @@ class PaniPariRepository {
             joinedAt = now
         )
 
-        _room.value = newRoom
-        _members.value = listOf(creator)
-        _presenceChanges.value = emptyList()
-        _claims.value = emptyList()
-        _auditEvents.value = listOf(
+        val events = listOf(
             AuditEvent(
                 id = "evt_" + UUID.randomUUID().toString().substring(0, 8),
                 roomId = roomId,
@@ -264,22 +307,71 @@ class PaniPariRepository {
                 createdAt = now
             )
         )
+
+        _room.value = newRoom
+        _members.value = listOf(creator)
+        _presenceChanges.value = emptyList()
+        _claims.value = emptyList()
+        _auditEvents.value = events
         _activeMemberId.value = creator.id
         _isDemo.value = false
+
+        // Save into device flat storage
+        savedRoomsMap[newRoom.id] = RoomBundle(newRoom, listOf(creator), emptyList(), emptyList(), events)
+        _savedRooms.value = savedRoomsMap.values.map { it.room }
         return true
     }
 
-    fun joinRoomByCode(code: String): Boolean {
+    fun joinRoomByCode(code: String, userName: String? = null): Boolean {
+        val clean = code.trim().uppercase()
         val current = _room.value
-        if (current != null && current.code.equals(code.trim(), ignoreCase = true)) {
+        if (current != null && current.code.equals(clean, ignoreCase = true)) {
             return true
         }
-        // If demo room code entered
-        if (code.trim().equals("DEMO42", ignoreCase = true)) {
+        // Check saved rooms on this phone
+        val saved = savedRoomsMap.values.find { it.room.code.equals(clean, ignoreCase = true) }
+        if (saved != null) {
+            openSavedRoom(saved.room.id)
+            return true
+        }
+        // Demo room
+        if (clean == "DEMO42") {
             startDemo()
             return true
         }
-        return false
+        // Import or connect friend's room
+        val newId = "rm_" + UUID.randomUUID().toString().substring(0, 8)
+        val importedRoom = Room(
+            id = newId,
+            code = clean,
+            name = "Flat $clean",
+            itemName = "20L Water Can",
+            itemUnit = "Can",
+            createdAt = System.currentTimeMillis()
+        )
+        val joiner = Member(
+            id = "mem_" + UUID.randomUUID().toString().substring(0, 8),
+            roomId = newId,
+            name = userName?.trim()?.ifEmpty { "Me" } ?: "Me",
+            color = "#0284c7",
+            emoji = "💧",
+            joinedAt = System.currentTimeMillis()
+        )
+        val events = listOf(
+            AuditEvent(
+                id = "evt_" + UUID.randomUUID().toString().substring(0, 8),
+                roomId = newId,
+                type = EventType.MEMBER_ADDED,
+                memberId = joiner.id,
+                details = "${joiner.name} joined room $clean",
+                createdAt = System.currentTimeMillis()
+            )
+        )
+        val bundle = RoomBundle(importedRoom, listOf(joiner), emptyList(), emptyList(), events)
+        savedRoomsMap[newId] = bundle
+        _savedRooms.value = savedRoomsMap.values.map { it.room }
+        openSavedRoom(newId)
+        return true
     }
 
     fun claimBroughtCan(

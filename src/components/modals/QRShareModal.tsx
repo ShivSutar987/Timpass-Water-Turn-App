@@ -31,7 +31,23 @@ export const QRShareModal: React.FC<QRShareModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [downloadingPoster, setDownloadingPoster] = useState(false);
 
-  const joinUrl = customDataUrl || (typeof window !== 'undefined' ? `${window.location.origin}?join=${roomCode}` : '');
+  const joinUrl =
+    customDataUrl ||
+    (typeof window !== 'undefined'
+      ? (() => {
+          try {
+            const payload = {
+              c: roomCode,
+              n: roomName,
+              i: itemName,
+            };
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+            return `${window.location.origin}?join=${roomCode}&d=${encoded}`;
+          } catch {
+            return `${window.location.origin}?join=${roomCode}`;
+          }
+        })()
+      : '');
 
   useEffect(() => {
     if (!isOpen) return;

@@ -114,9 +114,11 @@ fun SettingsScreen(
                     }
                 }
 
+                val inviteUri = "panipari://join?c=${room.code}&n=${java.net.URLEncoder.encode(room.name, "UTF-8")}&i=${java.net.URLEncoder.encode(room.itemName, "UTF-8")}&u=${java.net.URLEncoder.encode(room.itemUnit, "UTF-8")}"
+
                 // Visual QR Code
                 com.example.panipari.ui.components.QRCodeView(
-                    data = room.code,
+                    data = inviteUri,
                     sizeDp = 160.dp,
                     moduleColor = Sky600
                 )
@@ -169,12 +171,18 @@ fun SettingsScreen(
                 // Share Button
                 Button(
                     onClick = {
+                        val shareMessage = "💧 Join our flat ${room.name} on PaniPari!\n" +
+                            "📦 Tracking: ${room.itemName}\n" +
+                            "🔑 Room Code: ${room.code}\n" +
+                            "👉 Direct Link: $inviteUri\n\n" +
+                            "Scan the QR in PaniPari or enter code ${room.code} to join!"
+
                         val sendIntent = Intent().apply {
                             action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, "Join our flat ${room.name} on PaniPari to track ${room.itemName} turns! Room Code: ${room.code}")
+                            putExtra(Intent.EXTRA_TEXT, shareMessage)
                             type = "text/plain"
                         }
-                        context.startActivity(Intent.createChooser(sendIntent, "Share Room Code"))
+                        context.startActivity(Intent.createChooser(sendIntent, "Share Room Invite"))
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Sky600),
@@ -182,7 +190,7 @@ fun SettingsScreen(
                 ) {
                     Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Share Room Code with Flatmates", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("Share Room Invite with Flatmates", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }
