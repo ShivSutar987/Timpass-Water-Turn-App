@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -218,7 +219,9 @@ fun HomeScreen(
                         ) {
                             Button(
                                 onClick = { onConfirmClaim(claim.id) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("verify_delivery_button"),
                                 colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
@@ -228,7 +231,9 @@ fun HomeScreen(
                             }
                             Button(
                                 onClick = { onOpenDisputeDialog(claim) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("dispute_delivery_button"),
                                 colors = ButtonDefaults.buttonColors(containerColor = Slate800),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
@@ -383,7 +388,9 @@ fun HomeScreen(
                     ) {
                         Button(
                             onClick = onOpenClaimDialog,
-                            modifier = Modifier.weight(1.3f),
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .testTag("log_delivery_button"),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Sky600)
                         ) {
@@ -394,7 +401,9 @@ fun HomeScreen(
 
                         Button(
                             onClick = onReportEmpty,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("report_empty_button"),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Amber500)
                         ) {
@@ -406,7 +415,9 @@ fun HomeScreen(
                         if (nextPerson != null && !isMyTurn) {
                             Button(
                                 onClick = onOpenNudgeDialog,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("nudge_button"),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Slate800)
                             ) {

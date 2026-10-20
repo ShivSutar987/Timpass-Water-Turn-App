@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ fun AppBottomNav(
         items.forEach { (tab, filledIcon, outlinedIcon) ->
             val isSelected = activeTab == tab
             NavigationBarItem(
+                modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}"),
                 selected = isSelected,
                 onClick = { onTabSelected(tab) },
                 icon = {
